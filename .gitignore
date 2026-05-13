@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/data/
+
+# Node
+node_modules/
+
+# Claude Code internal
+.claude/
+.agents/
+
+# Env & IDE
+.env
+.vscode/
+
+# Database dump (large file)
+backend/cet6zx.sql
+
+# OS
+Thumbs.db
+.DS_Store
