@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://localhost:8000' })
+const api = axios.create({ baseURL: 'http://8.160.188.108' })
 
 export default {
   getWords(page = 1, size = 20) { return api.get('/api/words', { params: { page, size } }) },
