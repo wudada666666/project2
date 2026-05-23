@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import api from '../api'
+import api, { getDeepseekKey, setDeepseekKey } from '../api'
 
 const mode = ref('choice')
 const words = ref([])
@@ -24,8 +24,21 @@ const spellSubmitted = ref(false)
 const sentenceText = ref('')
 const aiLoading = ref(false)
 const aiFeedback = ref('')
+const deepseekKey = ref(getDeepseekKey())
+const keySaved = ref(false)
+const freeUses = ref(null)
 
-onMounted(() => loadWords())
+function saveApiKey() {
+  setDeepseekKey(deepseekKey.value)
+  keySaved.value = true
+  setTimeout(() => { keySaved.value = false }, 1500)
+}
+
+async function loadFreeUses() {
+  try { const { data } = await api.getFreeUses(); freeUses.value = data } catch {}
+}
+
+onMounted(() => { loadWords(); loadFreeUses() })
 
 async function loadWords() {
   const { data } = await api.getRandomWords(20)
@@ -81,10 +94,14 @@ async function submitSpell() {
 async function submitSentence() {
   if (!sentenceText.value.trim()) return
   aiLoading.value = true
+  aiFeedback.value = ''
   try {
     const { data } = await api.checkSentence(current.value.english, sentenceText.value)
     aiFeedback.value = data.feedback
-  } catch { aiFeedback.value = 'AI 服务暂不可用' }
+    loadFreeUses()
+  } catch (e) {
+    aiFeedback.value = e.response?.data?.detail || 'AI 服务暂不可用'
+  }
   aiLoading.value = false
 }
 
@@ -160,6 +177,20 @@ async function nextQuestion() { idx.value++; await next() }
 
     <!-- 造句 -->
     <div v-if="mode==='sentence' && current" class="test-card">
+      <div class="api-key-box">
+        <div v-if="freeUses && freeUses.remaining > 0" class="free-uses-info">
+          🎁 免费额度：剩余 <strong>{{ freeUses.remaining }}</strong> / {{ freeUses.limit }} 次
+        </div>
+        <div v-else-if="freeUses && freeUses.remaining <= 0" class="free-uses-info exhausted">
+          免费额度已用完，请填写自己的 API Key 继续使用
+        </div>
+        <label>🔑 DeepSeek API Key（造句检测专用，仅存本地浏览器）</label>
+        <div class="api-key-row">
+          <input v-model="deepseekKey" type="password" placeholder="sk-..." @change="saveApiKey" />
+          <button class="btn btn-sm btn-purple" @click="saveApiKey">{{ keySaved ? '已保存 ✓' : '保存' }}</button>
+        </div>
+        <p class="api-key-hint">拼写测验为本地校验，不需要 API Key。造句检测调用 DeepSeek，注册即送 10 次免费额度。</p>
+      </div>
       <div class="test-question">
         <span class="q-badge">造句检测</span>
         <p class="q-text">用 <strong class="highlight-word">{{ current.english }}</strong> 造句</p>

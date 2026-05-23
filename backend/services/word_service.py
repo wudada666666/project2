@@ -37,42 +37,50 @@ def get_word_by_id(word_id: int):
         conn.close()
 
 
-def get_random_unmastered(count: int = 20):
-    """Random words that aren't mastered or pending review (status != 1 and != 2)."""
+def get_random_unmastered(count: int = 20, user_id: int = 0):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            # Words excluded from random study: mastered (1) + pending review (2)
             excluded_set = set()
-            cur.execute("SELECT word_id FROM word_progress WHERE status IN (1, 2)")
+            cur.execute(
+                "SELECT word_id FROM word_progress WHERE user_id = %s AND status IN (1, 2)",
+                (user_id,),
+            )
             excluded_set.update(r["word_id"] for r in cur.fetchall())
 
-            # Words with status=3 (不认识) get higher weight
-            cur.execute("SELECT word_id FROM word_progress WHERE status = 3")
+            cur.execute(
+                "SELECT word_id FROM word_progress WHERE user_id = %s AND status = 3",
+                (user_id,),
+            )
             unknown_ids = {r["word_id"] for r in cur.fetchall()}
 
             result = []
-            # Phase 1: unknown words (status=3) priority
             if unknown_ids:
-                placeholders = ','.join(['%s'] * len(unknown_ids))
-                cur.execute(f"SELECT id, english, sent, chinese FROM `{TABLE}` WHERE id IN ({placeholders}) ORDER BY RAND()", tuple(unknown_ids))
+                placeholders = ",".join(["%s"] * len(unknown_ids))
+                cur.execute(
+                    f"SELECT id, english, sent, chinese FROM `{TABLE}` WHERE id IN ({placeholders}) ORDER BY RAND()",
+                    tuple(unknown_ids),
+                )
                 result.extend(cur.fetchall())
 
-            # Phase 2: unmarked words (no progress record or status=0)
             if excluded_set:
-                placeholders = ','.join(['%s'] * len(excluded_set))
+                placeholders = ",".join(["%s"] * len(excluded_set))
                 cur.execute(f"""
                     SELECT id, english, sent, chinese FROM `{TABLE}`
                     WHERE id NOT IN ({placeholders})
-                      AND id NOT IN (SELECT word_id FROM word_progress WHERE status = 3)
+                      AND id NOT IN (
+                        SELECT word_id FROM word_progress WHERE user_id = %s AND status = 3
+                      )
                     ORDER BY RAND() LIMIT %s
-                """, tuple(excluded_set) + (count * 2,))
+                """, tuple(excluded_set) + (user_id, count * 2))
             else:
                 cur.execute(f"""
                     SELECT id, english, sent, chinese FROM `{TABLE}`
-                    WHERE id NOT IN (SELECT word_id FROM word_progress WHERE status = 3)
+                    WHERE id NOT IN (
+                        SELECT word_id FROM word_progress WHERE user_id = %s AND status = 3
+                    )
                     ORDER BY RAND() LIMIT %s
-                """, (count * 2,))
+                """, (user_id, count * 2))
             result.extend(cur.fetchall())
 
             return result[:count]
@@ -80,8 +88,7 @@ def get_random_unmastered(count: int = 20):
         conn.close()
 
 
-def get_due_review():
-    """Get words with progress records for review, ordered by last review time."""
+def get_due_review(user_id: int):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -89,10 +96,10 @@ def get_due_review():
                 SELECT t.id, t.english, t.sent, t.chinese, p.review_count, p.status
                 FROM cet6zx t
                 JOIN word_progress p ON t.id = p.word_id
-                WHERE p.status IN (1, 2)
+                WHERE p.user_id = %s AND p.status IN (1, 2)
                 ORDER BY p.last_review_at ASC
                 LIMIT 100
-            """)
+            """, (user_id,))
             return cur.fetchall()
     finally:
         conn.close()

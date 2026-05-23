@@ -1,16 +1,18 @@
 import json
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEEPSEEK_API_KEY = "sk-29c08aca0b664c3cbefef1d2c91326b4"
 
 
-def call_deepseek(prompt: str, system: str = "") -> str:
-    """Call DeepSeek API and return response text."""
+def call_deepseek(prompt: str, api_key: str, system: str = "") -> str:
+    if not api_key or not api_key.strip():
+        raise ValueError("请先填写 DeepSeek API Key")
+
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Authorization": f"Bearer {api_key.strip()}",
     }
     body = {
         "model": "deepseek-chat",
@@ -33,11 +35,12 @@ def call_deepseek(prompt: str, system: str = "") -> str:
             return data["choices"][0]["message"]["content"]
     except urllib.error.HTTPError as e:
         err = e.read().decode()
+        if e.code in (401, 403):
+            raise ValueError("API Key 无效或已过期，请检查后重试")
         return f"AI 服务错误: {err}"
 
 
-def check_sentence(word: str, sentence: str) -> dict:
-    """Check if the sentence correctly uses the given word, and evaluate grammar."""
+def check_sentence(word: str, sentence: str, api_key: str) -> dict:
     system = "你是一名英语老师。请用中文回复。"
     prompt = f"""请检查以下句子中单词 "{word}" 的使用是否正确，以及语法是否正确。
 
@@ -50,5 +53,5 @@ def check_sentence(word: str, sentence: str) -> dict:
 4. 最后给出一个评分（1-10分）
 
 请用简洁的格式回复，不要超过150字。"""
-    result = call_deepseek(prompt, system)
+    result = call_deepseek(prompt, api_key, system)
     return {"word": word, "sentence": sentence, "feedback": result}

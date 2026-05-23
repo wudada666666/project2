@@ -231,13 +231,20 @@ function again() { phase.value = 'welcome' }
     </div>
 
     <div class="card-stage">
-      <Transition :name="lastWasWrong ? 'slide' : 'slide'" mode="out-in">
-        <div class="big-card" :key="current.id + '-' + idx" @click="flip" @touchstart="onTouchStart" @touchend="onTouchEnd">
-          <div class="en">{{ current.english }}</div>
-          <div class="ph">{{ current.sent }}</div>
-          <div v-if="flipped" class="cn">{{ current.chinese }}</div>
-          <div v-else-if="pendingUnknown" class="cn">{{ current.chinese }}</div>
-          <div v-else class="hint">👆 点击查释义 · 再点听发音</div>
+      <Transition name="fade" mode="out-in">
+        <div
+          :key="current.id + '-' + idx"
+          class="word-card-wrap"
+          @click="flip"
+          @touchstart="onTouchStart"
+          @touchend="onTouchEnd"
+        >
+          <div class="big-card" :class="{ revealed: flipped || pendingUnknown }">
+            <div class="en">{{ current.english }}</div>
+            <div class="ph">{{ current.sent }}</div>
+            <div v-if="flipped || pendingUnknown" class="cn">{{ current.chinese }}</div>
+            <div v-else class="hint">👆 点击查看释义 · 再点听发音</div>
+          </div>
         </div>
       </Transition>
     </div>
