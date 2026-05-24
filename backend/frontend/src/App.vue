@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getUsername, clearAuth } from './api'
 
@@ -7,7 +7,7 @@ const route = useRoute()
 const router = useRouter()
 const username = ref(getUsername())
 
-onMounted(() => {
+watch(() => route.path, () => {
   username.value = getUsername()
 })
 
